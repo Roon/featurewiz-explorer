@@ -250,3 +250,100 @@ def recursive_xgboost(
         selected = list(dict.fromkeys(selected + nominated))
         rounds.append(XgbRound(window, gains, nominated))
     return RecursiveXgbResult(step, top_num, rounds, selected)
+
+
+# --------------------------------------------------------------------------- pipeline
+
+@dataclass(frozen=True)
+class Selection:
+    sulov: SulovResult
+    xgb: RecursiveXgbResult
+
+    @property
+    def selected(self) -> list[str]:
+        return self.xgb.selected
+
+
+def _check_supported(frame: pd.DataFrame, features: list[str]) -> None:
+    """Refuse inputs where real featurewiz() would transform the data first."""
+    spaced = [f for f in features if " " in f]
+    if spaced:
+        raise ValueError(
+            f"column names contain spaces: {spaced}. featurewiz strips spaces from names, "
+            "so rename them (e.g. with underscores) to compare against featurewiz."
+        )
+    non_numeric = [f for f in features if not pd.api.types.is_numeric_dtype(frame[f])]
+    if non_numeric:
+        raise ValueError(
+            f"non-numeric columns: {non_numeric}. featurewiz encodes categoricals first; "
+            "that step is out of scope here."
+        )
+    missing = [f for f in features if frame[f].isna().any()]
+    if missing:
+        raise ValueError(
+            f"columns with missing values: {missing}. featurewiz adds missing-value flag "
+            "columns first; that step is out of scope here."
+        )
+
+
+def select_features(
+    frame: pd.DataFrame, target: str, corr_limit: float = 0.8, tree_method: str | None = "exact"
+) -> Selection:
+    """featurewiz()'s selection: SULOV on every column, then Recursive XGBoost on
+    SULOV's kept list in SULOV's output order."""
+    features = [c for c in frame.columns if c != target]
+    _check_supported(frame, features)
+    sulov_result = sulov(frame, features, target, corr_limit)
+    return Selection(sulov_result, recursive_xgboost(frame, sulov_result.kept, target, tree_method))
+
+
+def shuffled_order(features: list[str], seed: int = 0) -> list[str]:
+    """A reproducible reordering, used to show that Recursive XGBoost depends on column order."""
+    return [str(f) for f in np.random.default_rng(seed).permutation(list(features))]
+
+
+# --------------------------------------------------------------------------- scoring
+
+@dataclass(frozen=True)
+class SignalGroupScore:
+    covered: list[str]
+    missed: list[str]
+    redundant_extras: list[str]
+    noise_kept: list[str]
+
+    @property
+    def perfect(self) -> bool:
+        return not (self.missed or self.redundant_extras or self.noise_kept)
+
+
+def score_by_signal_group(selected: list[str], dataset: SyntheticDataset) -> SignalGroupScore:
+    """Perfect = exactly one feature per Signal group and no noise. Which member doesn't matter."""
+    if not dataset.groups:
+        raise ValueError("this dataset has no Signal groups; use score_relevant_vs_noise instead")
+    group_names = list(dict.fromkeys(dataset.groups.values()))
+    kept = {g: [f for f in selected if dataset.groups.get(f) == g] for g in group_names}
+    return SignalGroupScore(
+        covered=[g for g in group_names if kept[g]],
+        missed=[g for g in group_names if not kept[g]],
+        redundant_extras=[f for g in group_names for f in kept[g][1:]],
+        noise_kept=[f for f in selected if dataset.roles.get(f) == "noise"],
+    )
+
+
+@dataclass(frozen=True)
+class RelevanceScore:
+    relevant_kept: list[str]
+    relevant_total: int
+    noise_kept: list[str]
+    noise_total: int
+
+
+def score_relevant_vs_noise(selected: list[str], dataset: SyntheticDataset) -> RelevanceScore:
+    """For datasets whose redundant features mix several informative ones (Madelon-style)."""
+    relevant = {f for f, role in dataset.roles.items() if role != "noise"}
+    return RelevanceScore(
+        relevant_kept=[f for f in selected if f in relevant],
+        relevant_total=len(relevant),
+        noise_kept=[f for f in selected if f not in relevant],
+        noise_total=len(dataset.roles) - len(relevant),
+    )
