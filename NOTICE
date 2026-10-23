@@ -1,11 +1,30 @@
 featurewiz, explained
 Copyright 2026 Aaron Mayzes
 
+Licences
+--------
+- Code (src/, scripts/, tests/, notebooks/; on Kaggle: featurewiz_explained.py and
+  featurewiz_explained_plots.py): Apache License 2.0, see LICENSE.
+- Data (reference_runs/: breast_cancer.csv, reference_*.json, manifest.json):
+  Creative Commons Attribution 4.0 International (CC BY 4.0), see LICENSE-CC-BY-4.0.
+
+featurewiz
+----------
 This project re-implements, for teaching purposes, the SULOV and Recursive
 XGBoost feature-selection methods of featurewiz (https://github.com/AutoViML/featurewiz),
 Copyright Ram Seshadri / AutoViML, licensed under the Apache License 2.0.
 SULOV ("Searching for Uncorrelated List Of Variables") was created by Ram Seshadri in 2018.
+The reference_*.json files record the output of running featurewiz 0.6.1 on the
+datasets described in this project.
 
-Breast Cancer Wisconsin (Diagnostic) data: Wolberg, W., Mangasarian, O., Street, N.,
-& Street, W. (1993). UCI Machine Learning Repository. https://doi.org/10.24432/C5DW2B
-Licensed under CC BY 4.0.
+Breast Cancer Wisconsin (Diagnostic)
+------------------------------------
+Wolberg, W., Mangasarian, O., Street, N., & Street, W. (1993). UCI Machine Learning
+Repository. https://doi.org/10.24432/C5DW2B. Licensed under CC BY 4.0.
+
+breast_cancer.csv is a modified version of the UCI file wdbc.data. Changes:
+- the id column was dropped;
+- a header row was added, naming the 30 measurements <measure>_<mean|se|worst> with
+  underscores instead of spaces (e.g. concave_points_mean for "concave points");
+- diagnosis was recoded from letters to integers: M = 1 (malignant), B = 0 (benign),
+  and moved to the last column.

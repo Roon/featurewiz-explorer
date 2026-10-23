@@ -19,6 +19,27 @@ def test_dataset_is_flat_and_complete(tmp_path):
     assert meta["id"] == "amayzes/featurewiz-explained-reference-runs"
 
 
+def test_dataset_states_licence_per_file(tmp_path):
+    # The single Kaggle licence field says CC BY 4.0; the description must say the code is Apache-2.0.
+    build_kaggle.build_kaggle(tmp_path)
+    meta = json.loads((tmp_path / "dataset" / "dataset-metadata.json").read_text())
+    assert meta["licenses"] == [{"name": "CC-BY-4.0"}]
+    description = meta["description"]
+    for needle in ("featurewiz_explained.py", "featurewiz_explained_plots.py", "Apache-2.0",
+                   "breast_cancer.csv", "reference_*.json", "CC BY 4.0"):
+        assert needle in description, needle
+    assert "LICENSE-CC-BY-4.0" in {p.name for p in (tmp_path / "dataset").iterdir()}
+    # Kaggle sanitises HTML: anything from a "<" onwards is silently dropped from the description.
+    assert "<" not in description and ">" not in description
+
+
+def test_notice_lists_changes_to_the_uci_data():
+    # CC BY 4.0 requires indicating changes to the licensed material.
+    notice = (ROOT / "NOTICE").read_text()
+    for change in ("id", "concave_points", "diagnosis", "M = 1"):
+        assert change in notice, change
+
+
 def test_lessons_are_private_offline_and_attach_the_dataset(tmp_path):
     build_kaggle.build_kaggle(tmp_path)
     lessons = sorted(tmp_path.glob("lesson-*"))
