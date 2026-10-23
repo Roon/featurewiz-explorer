@@ -40,7 +40,7 @@ Apache-2.0, not CC BY.** They re-implement featurewiz (Apache-2.0, Ram Seshadri 
 
 - `breast_cancer.csv`: Breast Cancer Wisconsin (Diagnostic), Wolberg, Mangasarian, Street & Street (1993),
   UCI Machine Learning Repository, https://doi.org/10.24432/C5DW2B, CC BY 4.0. Modified: `id` dropped;
-  columns named `<measure>_<mean|se|worst>` with underscores (e.g. `concave_points_mean`);
+  columns named measure_statistic with underscores (e.g. `radius_se`, `concave_points_mean`);
   `diagnosis` recoded M = 1, B = 0.
 - `reference_*.json`: what the real featurewiz 0.6.1 selected (SULOV output, every Recursive XGBoost
   round's gains, final selection) on each dataset, recorded with xgboost 1.7.6 and scikit-learn 1.5.2.

@@ -29,6 +29,8 @@ def test_dataset_states_licence_per_file(tmp_path):
                    "breast_cancer.csv", "reference_*.json", "CC BY 4.0"):
         assert needle in description, needle
     assert "LICENSE-CC-BY-4.0" in {p.name for p in (tmp_path / "dataset").iterdir()}
+    # Kaggle sanitises HTML: anything from a "<" onwards is silently dropped from the description.
+    assert "<" not in description and ">" not in description
 
 
 def test_notice_lists_changes_to_the_uci_data():
