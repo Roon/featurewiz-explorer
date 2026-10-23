@@ -52,6 +52,13 @@ def test_lessons_are_private_offline_and_attach_the_dataset(tmp_path):
     assert (lessons[1] / meta["code_file"]).is_file()
 
 
+def test_lessons_can_be_built_public(tmp_path):
+    build_kaggle.build_kaggle(tmp_path, public=True)
+    for lesson in sorted(tmp_path.glob("lesson-*")):
+        meta = json.loads((lesson / "kernel-metadata.json").read_text())
+        assert meta["is_private"] is False and meta["enable_internet"] is False
+
+
 def test_titles_fit_kaggles_50_character_limit(tmp_path):
     build_kaggle.build_kaggle(tmp_path)
     for lesson in sorted(tmp_path.glob("lesson-*")):

@@ -53,7 +53,7 @@ def _slug(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
 
 
-def build_kaggle(out: Path, owner: str = "amayzes") -> None:
+def build_kaggle(out: Path, owner: str = "amayzes", public: bool = False) -> None:
     if out.exists():
         shutil.rmtree(out)
     dataset = out / "dataset"
@@ -84,7 +84,7 @@ def build_kaggle(out: Path, owner: str = "amayzes") -> None:
             "code_file": notebook,
             "language": "python",
             "kernel_type": "notebook",
-            "is_private": True,
+            "is_private": not public,
             "enable_gpu": False,
             "enable_internet": False,
             "dataset_sources": [f"{owner}/{DATASET_SLUG}"],
@@ -94,5 +94,10 @@ def build_kaggle(out: Path, owner: str = "amayzes") -> None:
 
 
 if __name__ == "__main__":
-    build_kaggle(ROOT / "build" / "kaggle")
-    print("built", ROOT / "build" / "kaggle")
+    import sys
+
+    # Kaggle sets a notebook's visibility from is_private on every push, so pushing a
+    # private build would hide published Lessons again. Pass --public once they are public.
+    public = "--public" in sys.argv[1:]
+    build_kaggle(ROOT / "build" / "kaggle", public=public)
+    print("built", ROOT / "build" / "kaggle", "(public)" if public else "(private)")
