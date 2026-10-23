@@ -16,7 +16,7 @@ DATASET_SLUG = "featurewiz-explained-reference-runs"
 LESSONS = [
     ("01-intuition.ipynb", "Intuition"),
     ("02-sulov.ipynb", "SULOV, step by step"),
-    ("03-recursive-xgboost.ipynb", "Recursive XGBoost, step by step"),
+    ("03-recursive-xgboost.ipynb", "Recursive XGBoost"),  # Kaggle titles max 50 chars
     ("04-full-pipeline.ipynb", "Full pipeline"),
 ]
 

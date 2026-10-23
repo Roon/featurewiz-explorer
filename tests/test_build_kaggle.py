@@ -29,3 +29,10 @@ def test_lessons_are_private_offline_and_attach_the_dataset(tmp_path):
     assert meta["is_private"] is True and meta["enable_internet"] is False
     assert meta["dataset_sources"] == ["amayzes/featurewiz-explained-reference-runs"]
     assert (lessons[1] / meta["code_file"]).is_file()
+
+
+def test_titles_fit_kaggles_50_character_limit(tmp_path):
+    build_kaggle.build_kaggle(tmp_path)
+    for lesson in sorted(tmp_path.glob("lesson-*")):
+        title = json.loads((lesson / "kernel-metadata.json").read_text())["title"]
+        assert 5 <= len(title) <= 50, title
