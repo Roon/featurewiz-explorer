@@ -254,6 +254,11 @@ def recursive_xgboost(
         dtrain = xgb.DMatrix(frame[window], y, enable_categorical=True, feature_names=window)
         booster = xgb.train(params, dtrain, num_boost_round=num_boost_round)
         gains = booster.get_score(fmap="", importance_type="total_gain")
+        if not gains:
+            # featurewiz's try/except: nominating from empty gains raises, and featurewiz
+            # returns this Round's window instead, dropping earlier nominations (a Quirk).
+            rounds.append(XgbRound(window, gains, []))
+            return RecursiveXgbResult(step, top_num, rounds, list(window))
         nominated = nominate(gains, top_num)
         selected = list(dict.fromkeys(selected + nominated))
         rounds.append(XgbRound(window, gains, nominated))
