@@ -21,6 +21,34 @@ LESSONS = [
 ]
 
 
+DESCRIPTION = """\
+Support files for the **featurewiz, explained** notebooks, a four-part series that rebuilds
+featurewiz 0.6.1's feature selection (SULOV, then Recursive XGBoost) step by step.
+Attach this dataset to a Lesson; it runs with Internet off.
+
+## Licences (per file)
+
+| Files | Licence |
+|---|---|
+| `breast_cancer.csv`, `reference_*.json`, `manifest.json` | CC BY 4.0 (`LICENSE-CC-BY-4.0`) |
+| `featurewiz_explained.py`, `featurewiz_explained_plots.py` | Apache-2.0 (`LICENSE`) |
+
+Kaggle's licence field shows CC BY 4.0 because it covers the data. **The two Python files are
+Apache-2.0, not CC BY.** They re-implement featurewiz (Apache-2.0, Ram Seshadri / AutoViML).
+
+## Sources and changes
+
+- `breast_cancer.csv`: Breast Cancer Wisconsin (Diagnostic), Wolberg, Mangasarian, Street & Street (1993),
+  UCI Machine Learning Repository, https://doi.org/10.24432/C5DW2B, CC BY 4.0. Modified: `id` dropped;
+  columns named `<measure>_<mean|se|worst>` with underscores (e.g. `concave_points_mean`);
+  `diagnosis` recoded M = 1, B = 0.
+- `reference_*.json`: what the real featurewiz 0.6.1 selected (SULOV output, every Recursive XGBoost
+  round's gains, final selection) on each dataset, recorded with xgboost 1.7.6 and scikit-learn 1.5.2.
+
+Full attributions are in `NOTICE`. Source: https://github.com/Roon/featurewiz-explorer
+"""
+
+
 def _slug(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
 
@@ -35,12 +63,14 @@ def build_kaggle(out: Path, owner: str = "amayzes") -> None:
     for path in (ROOT / "reference_runs").iterdir():
         if path.is_file():
             shutil.copy(path, dataset / path.name)
-    for name in ("LICENSE", "NOTICE"):
+    for name in ("LICENSE", "LICENSE-CC-BY-4.0", "NOTICE"):
         shutil.copy(ROOT / name, dataset / name)
     (dataset / "dataset-metadata.json").write_text(json.dumps({
         "title": "featurewiz, explained: reference runs",
         "id": f"{owner}/{DATASET_SLUG}",
+        # Kaggle allows one licence; it covers the data. The description states the code's licence.
         "licenses": [{"name": "CC-BY-4.0"}],
+        "description": DESCRIPTION,
     }, indent=1))
 
     for number, (notebook, topic) in enumerate(LESSONS, start=1):
