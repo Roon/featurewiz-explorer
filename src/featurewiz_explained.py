@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -217,6 +218,12 @@ def _xgb_params(y: pd.Series) -> dict:
             "target must be encoded as integers 0..k-1 with at least two classes "
             f"(featurewiz label-encodes it before this stage); found {classes.tolist()}"
         )
+    # featurewiz switches to regression above 30 integer or 15 float target values (ml_models.py)
+    if len(classes) > (15 if pd.api.types.is_float_dtype(y) else 30):
+        raise ValueError(
+            f"target has {len(classes)} distinct values; featurewiz would treat it as a regression "
+            "target, which this series doesn't cover."
+        )
     if len(classes) == 2:
         return {"objective": "binary:logistic", "num_class": 1, "min_child_weight": 0.5}
     return {"objective": "multi:softmax", "num_class": len(classes), "min_child_weight": 0.5}
@@ -265,13 +272,20 @@ class Selection:
         return self.xgb.selected
 
 
+# featurewiz() runs SULOV on a 10,000-row sample once rows x columns reaches 50 million.
+SULOV_SAMPLING_CELLS = 50_000_000
+# classify_features() turns float columns with this many distinct values or fewer into categoricals.
+FLOAT_CATEGORICAL_LIMIT = 15
+
+
 def _check_supported(frame: pd.DataFrame, features: list[str]) -> None:
-    """Refuse inputs where real featurewiz() would transform the data first."""
-    spaced = [f for f in features if " " in f]
-    if spaced:
+    """Refuse inputs where real featurewiz() would transform the data first
+    (rename, drop, encode or sample), since the Re-implementation starts at SULOV."""
+    renamed = [f for f in features if not isinstance(f, str) or re.search(r"[^A-Za-z0-9_]", f)]
+    if renamed:
         raise ValueError(
-            f"column names contain spaces: {spaced}. featurewiz strips spaces from names, "
-            "so rename them (e.g. with underscores) to compare against featurewiz."
+            f"column names featurewiz would rename: {renamed}. featurewiz strips every character "
+            "outside [A-Za-z0-9_] (spaces included); rename them to compare against featurewiz."
         )
     non_numeric = [f for f in features if not pd.api.types.is_numeric_dtype(frame[f])]
     if non_numeric:
@@ -284,6 +298,29 @@ def _check_supported(frame: pd.DataFrame, features: list[str]) -> None:
         raise ValueError(
             f"columns with missing values: {missing}. featurewiz adds missing-value flag "
             "columns first; that step is out of scope here."
+        )
+    infinite = [f for f in features if not np.isfinite(frame[f].to_numpy(dtype=float)).all()]
+    if infinite:
+        raise ValueError(f"columns with infinite values: {infinite}. featurewiz drops these columns first.")
+    constant = [f for f in features if frame[f].nunique() == 1]
+    if constant:
+        raise ValueError(f"constant columns: {constant}. featurewiz drops these columns first.")
+    integer = [f for f in features if pd.api.types.is_integer_dtype(frame[f])]
+    if integer:
+        raise ValueError(
+            f"integer columns: {integer}. featurewiz classifies integer columns as IDs, years or "
+            "categoricals first; convert measurements to float to compare against featurewiz."
+        )
+    low_cardinality = [f for f in features if frame[f].nunique() <= FLOAT_CATEGORICAL_LIMIT]
+    if low_cardinality:
+        raise ValueError(
+            f"float columns with {FLOAT_CATEGORICAL_LIMIT} or fewer distinct values: {low_cardinality}. "
+            "featurewiz treats these as categorical and encodes them first."
+        )
+    if len(frame) * frame.shape[1] >= SULOV_SAMPLING_CELLS:
+        raise ValueError(
+            "data has 50 million cells or more; featurewiz would run SULOV on a random "
+            "10,000-row sample, which this Re-implementation doesn't reproduce."
         )
 
 

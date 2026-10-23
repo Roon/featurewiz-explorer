@@ -61,6 +61,13 @@ def test_targets_must_be_encoded_as_0_to_k_minus_1(labels):
         fwx.recursive_xgboost(_small_frame(labels), ["f0", "f1", "f2"], "y")
 
 
+def test_targets_featurewiz_would_treat_as_regression_are_rejected():
+    frame = _small_frame()
+    frame["y"] = np.arange(len(frame)) % 40  # 40 integer classes: featurewiz switches to Regression
+    with pytest.raises(ValueError, match="regression"):
+        fwx.recursive_xgboost(frame, ["f0", "f1", "f2"], "y")
+
+
 def test_string_targets_are_rejected():
     frame = _small_frame()
     frame["y"] = frame["y"].map({0: "B", 1: "M"})

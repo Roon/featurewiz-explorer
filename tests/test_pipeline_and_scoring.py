@@ -31,6 +31,46 @@ def test_select_features_rejects_non_numeric_columns():
         fwx.select_features(frame, "target")
 
 
+@pytest.mark.parametrize("name", ["x-1", "x.1", "ratio(%)", "a[0]"])
+def test_select_features_rejects_names_featurewiz_would_rename(name):
+    frame = fwx.make_canonical_dataset().frame.rename(columns={"x1": name})
+    with pytest.raises(ValueError, match="A-Za-z0-9_"):
+        fwx.select_features(frame, "target")
+
+
+def test_select_features_rejects_non_finite_values():
+    frame = fwx.make_canonical_dataset().frame
+    frame.loc[0, "x2"] = np.inf
+    with pytest.raises(ValueError, match="infinite"):
+        fwx.select_features(frame, "target")
+
+
+def test_select_features_rejects_constant_columns():
+    frame = fwx.make_canonical_dataset().frame.assign(const=1.0)
+    with pytest.raises(ValueError, match="constant"):
+        fwx.select_features(frame, "target")
+
+
+def test_select_features_rejects_integer_columns():
+    frame = fwx.make_canonical_dataset().frame
+    frame["row_id"] = np.arange(len(frame))
+    with pytest.raises(ValueError, match="integer"):
+        fwx.select_features(frame, "target")
+
+
+def test_select_features_rejects_low_cardinality_floats():
+    frame = fwx.make_canonical_dataset().frame
+    frame["level"] = np.resize([0.5, 1.5, 2.5], len(frame))
+    with pytest.raises(ValueError, match="categorical"):
+        fwx.select_features(frame, "target")
+
+
+def test_select_features_rejects_data_featurewiz_would_sample(monkeypatch):
+    monkeypatch.setattr(fwx, "SULOV_SAMPLING_CELLS", 1000)
+    with pytest.raises(ValueError, match="sample"):
+        fwx.select_features(fwx.make_canonical_dataset().frame, "target")
+
+
 def test_shuffled_order_is_a_deterministic_permutation_of_plain_strings():
     features = ["a", "b", "c", "d", "e"]
     order = fwx.shuffled_order(features, seed=0)

@@ -25,6 +25,15 @@ def test_code_cells_never_need_the_internet(path):
 
 
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
+def test_lessons_report_reference_differences_instead_of_crashing(path):
+    # Kaggle's packages move on; a Reference-run mismatch there is expected (ADR 0002), not fatal.
+    for cell in json.loads(path.read_text())["cells"]:
+        if cell["cell_type"] == "code":
+            for line in "".join(cell["source"]).splitlines():
+                assert not (line.lstrip().startswith("assert") and "reference" in line), f"{path.name}: {line}"
+
+
+@pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
 def test_outputs_are_stripped(path):
     for cell in json.loads(path.read_text())["cells"]:
         if cell["cell_type"] == "code":
