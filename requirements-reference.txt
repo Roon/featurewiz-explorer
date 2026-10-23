@@ -1,0 +1,8 @@
+featurewiz==0.6.1
+xgboost==1.7.6
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+pyarrow==16.1.0
+scipy==1.17.1
+plotly
