@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_classification
+from sklearn.feature_selection import mutual_info_classif
 
 FEATUREWIZ_VERSION = "0.6.1"
 
@@ -101,3 +102,70 @@ def reference_dir() -> Path:
 def load_breast_cancer() -> pd.DataFrame:
     """Breast Cancer Wisconsin (Diagnostic), UCI, CC BY 4.0. diagnosis: 1 = malignant."""
     return pd.read_csv(reference_dir() / "breast_cancer.csv")
+
+
+# --------------------------------------------------------------------------- SULOV
+
+@dataclass(frozen=True)
+class SulovResult:
+    correlated_pairs: list[tuple[str, str]]
+    mutual_info: dict[str, float]
+    kept: list[str]
+    dropped: list[str]
+
+
+def sulov(frame: pd.DataFrame, features: list[str], target: str, corr_limit: float = 0.8) -> SulovResult:
+    """SULOV, re-implemented faithfully from featurewiz 0.6.1 (pairwise mode).
+
+    Attribution, as featurewiz requires of anyone copying SULOV:
+    SULOV stands for Searching Uncorrelated List Of Variables. SULOV method was
+    created by Ram Seshadri in 2018. This highly efficient method removes variables
+    that are highly correlated using a series of pair-wise correlation knockout
+    rounds. To decide order of variables to keep, we use mutual information score
+    to select. MIS returns a ranked list of these correlated variables: when we
+    select one, we knock out others that are highly correlated to it. Then we
+    select next variable to inspect. This continues until we knock out all highly
+    correlated variables in each set of variables. Finally we are left with only
+    uncorrelated variables that are also highly important in mutual score.
+
+    Note: featurewiz()'s default corr_limit is 0.8, but the SULOV function's own
+    default is 0.70. We follow featurewiz() (a Quirk the Lessons point out).
+    """
+    features = list(features)
+    X = frame[features].fillna(0)
+    corr = X.corr(method="pearson").abs()
+
+    pairs = []
+    for i in range(len(features)):
+        for j in range(i + 1, len(features)):
+            if corr.iloc[i, j] >= corr_limit:
+                pairs.append((features[i], features[j]))
+    pairs.sort()
+    if not pairs:
+        return SulovResult([], {}, features, [])
+
+    paired = list(dict.fromkeys(f for pair in pairs for f in pair))
+    scores = mutual_info_classif(
+        X[paired], frame[target], n_neighbors=5, discrete_features=False, random_state=42
+    )
+    mutual_info = {f: float(s) for f, s in zip(paired, scores)}
+
+    # Walk features from highest mutual information down. `walk` shrinks while we
+    # iterate over it, exactly as in featurewiz.
+    walk = sorted(mutual_info, key=mutual_info.get, reverse=True)
+    kept_paired, analysed = [], set()
+    for feature in walk:
+        kept_paired.append(feature)
+        for a, b in pairs:
+            pair = tuple(sorted((a, b)))
+            if feature == a and pair not in analysed:
+                analysed.add(pair)
+                if b in walk:
+                    walk.remove(b)
+            elif feature == b and pair not in analysed:
+                analysed.add(pair)
+                if a in walk:
+                    walk.remove(a)
+
+    kept = [f for f in features if f not in paired] + kept_paired
+    return SulovResult(pairs, mutual_info, kept, [f for f in features if f not in kept])
