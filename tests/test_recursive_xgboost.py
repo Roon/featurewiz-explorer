@@ -75,6 +75,17 @@ def test_string_targets_are_rejected():
         fwx.recursive_xgboost(frame, ["f0", "f1", "f2"], "y")
 
 
+def test_a_round_with_no_gains_falls_back_to_its_window_like_featurewiz():
+    # featurewiz wraps the whole loop in try/except; when a Round's gains are empty,
+    # nominating raises and featurewiz returns that Round's window, discarding earlier
+    # nominations (a Quirk). Here Round 2's window holds only constant columns.
+    frame = _small_frame()[["f0", "f1", "y"]].assign(c1=1.0, c2=2.0)
+    result = fwx.recursive_xgboost(frame, ["f0", "f1", "c1", "c2"], "y")
+    assert [r.window for r in result.rounds] == [["f0", "f1", "c1", "c2"], ["c1", "c2"]]
+    assert result.rounds[1].gains == {} and result.rounds[1].nominated == []
+    assert result.selected == ["c1", "c2"]
+
+
 def test_canonical_dataset_after_sulov_misses_x4():
     data = fwx.make_canonical_dataset()
     kept = fwx.sulov(data.frame, data.features, data.target).kept
