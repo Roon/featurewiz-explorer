@@ -1,0 +1,11 @@
+featurewiz, explained
+Copyright 2026 Aaron Mayzes
+
+This project re-implements, for teaching purposes, the SULOV and Recursive
+XGBoost feature-selection methods of featurewiz (https://github.com/AutoViML/featurewiz),
+Copyright Ram Seshadri / AutoViML, licensed under the Apache License 2.0.
+SULOV ("Searching for Uncorrelated List Of Variables") was created by Ram Seshadri in 2018.
+
+Breast Cancer Wisconsin (Diagnostic) data: Wolberg, W., Mangasarian, O., Street, N.,
+& Street, W. (1993). UCI Machine Learning Repository. https://doi.org/10.24432/C5DW2B
+Licensed under CC BY 4.0.

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "featurewiz-explained"
+version = "0.1.0"
+description = "A faithful, readable re-implementation of featurewiz's feature selection, for learning."
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "scikit-learn", "xgboost", "plotly"]
+
+[project.optional-dependencies]
+dev = ["pytest", "nbmake", "nbstripout", "jupytext", "ipykernel"]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["featurewiz_explained", "featurewiz_explained_plots"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
