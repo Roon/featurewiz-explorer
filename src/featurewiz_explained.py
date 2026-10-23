@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from sklearn.datasets import make_classification
 from sklearn.feature_selection import mutual_info_classif
 
@@ -169,3 +170,83 @@ def sulov(frame: pd.DataFrame, features: list[str], target: str, corr_limit: flo
 
     kept = [f for f in features if f not in paired] + kept_paired
     return SulovResult(pairs, mutual_info, kept, [f for f in features if f not in kept])
+
+
+# --------------------------------------------------------------------------- Recursive XGBoost
+
+@dataclass(frozen=True)
+class XgbRound:
+    window: list[str]
+    gains: dict[str, float]
+    nominated: list[str]
+
+
+@dataclass(frozen=True)
+class RecursiveXgbResult:
+    step: int
+    top_num: int
+    rounds: list[XgbRound]
+    selected: list[str]
+
+
+def round_plan(n_features: int) -> tuple[int, int]:
+    """(step, top_num): how many features each Round slides past, and how many it nominates."""
+    step = 2 if n_features <= 10 else int(n_features / 5 + 0.5)
+    top_num = int(max(2, n_features * 0.25)) if n_features <= 50 else int(n_features * 0.20)
+    return step, top_num
+
+
+def nominate(gains: dict[str, float], top_num: int) -> list[str]:
+    """Which features a Round nominates, with featurewiz's exact pandas expressions
+    (including the boolean-mask alignment that keeps strong features in gains order)."""
+    s = pd.Series(gains)
+    strong = s[s.sort_values(ascending=False) / s.values.max() >= 0.5]
+    if len(strong) > 1:
+        nominated = strong.index.tolist()
+        if len(nominated) < top_num:
+            nominated = s.sort_values(ascending=False)[:top_num].index.tolist()
+        return nominated
+    return s.sort_values(ascending=False)[:top_num].index.tolist()
+
+
+def _xgb_params(y: pd.Series) -> dict:
+    classes = np.sort(pd.unique(y))
+    if len(classes) < 2 or not np.array_equal(classes, np.arange(len(classes))):
+        raise ValueError(
+            "target must be encoded as integers 0..k-1 with at least two classes "
+            f"(featurewiz label-encodes it before this stage); found {classes.tolist()}"
+        )
+    if len(classes) == 2:
+        return {"objective": "binary:logistic", "num_class": 1, "min_child_weight": 0.5}
+    return {"objective": "multi:softmax", "num_class": len(classes), "min_child_weight": 0.5}
+
+
+def recursive_xgboost(
+    frame: pd.DataFrame, features: list[str], target: str, tree_method: str | None = "exact"
+) -> RecursiveXgbResult:
+    """Recursive XGBoost, re-implemented faithfully from featurewiz 0.6.1.
+
+    Column order matters (a Quirk): each Round trains on the suffix features[i:],
+    so the first columns appear in fewer Rounds than the last ones.
+    tree_method="exact" reproduces xgboost 1.7.6's choice; None uses the installed default.
+    """
+    features = list(features)
+    y = frame[target]
+    params = _xgb_params(y)
+    if tree_method is not None:
+        params["tree_method"] = tree_method
+    step, top_num = round_plan(len(features))
+    num_boost_round = 20 if len(frame) >= 100_000 else 100
+
+    rounds, selected = [], []
+    for i in range(0, len(features), step):
+        if len(features) - i < 2:
+            continue
+        window = features[i:]
+        dtrain = xgb.DMatrix(frame[window], y, enable_categorical=True, feature_names=window)
+        booster = xgb.train(params, dtrain, num_boost_round=num_boost_round)
+        gains = booster.get_score(fmap="", importance_type="total_gain")
+        nominated = nominate(gains, top_num)
+        selected = list(dict.fromkeys(selected + nominated))
+        rounds.append(XgbRound(window, gains, nominated))
+    return RecursiveXgbResult(step, top_num, rounds, selected)
