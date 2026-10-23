@@ -1,0 +1,30 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  pinned:
+    # The Re-implementation must match the Reference runs exactly (ADR 0002).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements-pinned.txt && pip install -e . --no-deps
+      - run: pytest -v
+
+  current:
+    # Stands in for Kaggle's notebook image: latest packages. Differences are reported, not failed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: nbstripout --verify notebooks/*.ipynb
+      - run: pytest -v
+      - run: pytest --nbmake --nbmake-timeout=900 notebooks/
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-diff
+          path: build/reference-diff.md
