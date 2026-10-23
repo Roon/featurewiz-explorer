@@ -34,6 +34,13 @@ def test_lessons_report_reference_differences_instead_of_crashing(path):
 
 
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
+def test_lessons_declare_a_python3_kernel(path):
+    # Kaggle runs notebooks with papermill, which refuses a notebook without a kernelspec.
+    metadata = json.loads(path.read_text())["metadata"]
+    assert metadata.get("kernelspec", {}).get("name") == "python3"
+
+
+@pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
 def test_outputs_are_stripped(path):
     for cell in json.loads(path.read_text())["cells"]:
         if cell["cell_type"] == "code":
