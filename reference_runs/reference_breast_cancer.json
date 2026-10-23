@@ -1,0 +1,190 @@
+{
+ "name": "breast_cancer",
+ "stage": "pipeline",
+ "versions": {
+  "featurewiz": "0.6.1",
+  "xgboost": "1.7.6",
+  "scikit-learn": "1.5.2",
+  "numpy": "1.26.4",
+  "pandas": "2.2.3"
+ },
+ "input_features": [
+  "radius_mean",
+  "texture_mean",
+  "perimeter_mean",
+  "area_mean",
+  "smoothness_mean",
+  "compactness_mean",
+  "concavity_mean",
+  "concave_points_mean",
+  "symmetry_mean",
+  "fractal_dimension_mean",
+  "radius_se",
+  "texture_se",
+  "perimeter_se",
+  "area_se",
+  "smoothness_se",
+  "compactness_se",
+  "concavity_se",
+  "concave_points_se",
+  "symmetry_se",
+  "fractal_dimension_se",
+  "radius_worst",
+  "texture_worst",
+  "perimeter_worst",
+  "area_worst",
+  "smoothness_worst",
+  "compactness_worst",
+  "concavity_worst",
+  "concave_points_worst",
+  "symmetry_worst",
+  "fractal_dimension_worst"
+ ],
+ "sulov_kept": [
+  "symmetry_mean",
+  "fractal_dimension_mean",
+  "texture_se",
+  "smoothness_se",
+  "concave_points_se",
+  "symmetry_se",
+  "symmetry_worst",
+  "perimeter_worst",
+  "concavity_mean",
+  "area_se",
+  "compactness_worst",
+  "concavity_se",
+  "texture_worst",
+  "smoothness_worst",
+  "fractal_dimension_se"
+ ],
+ "rounds": [
+  {
+   "window": [
+    "symmetry_mean",
+    "fractal_dimension_mean",
+    "texture_se",
+    "smoothness_se",
+    "concave_points_se",
+    "symmetry_se",
+    "symmetry_worst",
+    "perimeter_worst",
+    "concavity_mean",
+    "area_se",
+    "compactness_worst",
+    "concavity_se",
+    "texture_worst",
+    "smoothness_worst",
+    "fractal_dimension_se"
+   ],
+   "gains": {
+    "symmetry_mean": 7.596508502960205,
+    "fractal_dimension_mean": 4.770951747894287,
+    "texture_se": 7.8676676750183105,
+    "smoothness_se": 15.932836532592773,
+    "concave_points_se": 3.7436466217041016,
+    "symmetry_se": 3.759366512298584,
+    "symmetry_worst": 25.560752868652344,
+    "perimeter_worst": 1054.4259033203125,
+    "concavity_mean": 20.446086883544922,
+    "area_se": 22.897689819335938,
+    "compactness_worst": 49.9315071105957,
+    "concavity_se": 1.3039602041244507,
+    "texture_worst": 69.10181427001953,
+    "smoothness_worst": 117.34574127197266,
+    "fractal_dimension_se": 10.62979793548584
+   }
+  },
+  {
+   "window": [
+    "smoothness_se",
+    "concave_points_se",
+    "symmetry_se",
+    "symmetry_worst",
+    "perimeter_worst",
+    "concavity_mean",
+    "area_se",
+    "compactness_worst",
+    "concavity_se",
+    "texture_worst",
+    "smoothness_worst",
+    "fractal_dimension_se"
+   ],
+   "gains": {
+    "smoothness_se": 25.247737884521484,
+    "concave_points_se": 4.651702404022217,
+    "symmetry_se": 8.610017776489258,
+    "symmetry_worst": 29.635723114013672,
+    "perimeter_worst": 1060.981201171875,
+    "concavity_mean": 17.60555648803711,
+    "area_se": 28.21040153503418,
+    "compactness_worst": 38.36802291870117,
+    "concavity_se": 1.7504087686538696,
+    "texture_worst": 68.5575180053711,
+    "smoothness_worst": 121.02536010742188,
+    "fractal_dimension_se": 11.75270938873291
+   }
+  },
+  {
+   "window": [
+    "symmetry_worst",
+    "perimeter_worst",
+    "concavity_mean",
+    "area_se",
+    "compactness_worst",
+    "concavity_se",
+    "texture_worst",
+    "smoothness_worst",
+    "fractal_dimension_se"
+   ],
+   "gains": {
+    "symmetry_worst": 36.72953414916992,
+    "perimeter_worst": 1066.990234375,
+    "concavity_mean": 14.379383087158203,
+    "area_se": 32.704795837402344,
+    "compactness_worst": 37.718963623046875,
+    "concavity_se": 4.602302074432373,
+    "texture_worst": 79.3885498046875,
+    "smoothness_worst": 130.41737365722656,
+    "fractal_dimension_se": 11.290932655334473
+   }
+  },
+  {
+   "window": [
+    "area_se",
+    "compactness_worst",
+    "concavity_se",
+    "texture_worst",
+    "smoothness_worst",
+    "fractal_dimension_se"
+   ],
+   "gains": {
+    "area_se": 840.9159545898438,
+    "compactness_worst": 262.2696533203125,
+    "concavity_se": 23.99818992614746,
+    "texture_worst": 92.8576431274414,
+    "smoothness_worst": 115.9634780883789,
+    "fractal_dimension_se": 66.91773223876953
+   }
+  },
+  {
+   "window": [
+    "texture_worst",
+    "smoothness_worst",
+    "fractal_dimension_se"
+   ],
+   "gains": {
+    "texture_worst": 576.3035888671875,
+    "smoothness_worst": 399.9063720703125,
+    "fractal_dimension_se": 321.80596923828125
+   }
+  }
+ ],
+ "selected": [
+  "perimeter_worst",
+  "smoothness_worst",
+  "texture_worst",
+  "area_se",
+  "compactness_worst",
+  "fractal_dimension_se"
+ ]
+}

@@ -7,6 +7,7 @@ Reference run of the real library exactly, so don't "fix" anything here.
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -346,4 +347,97 @@ def score_relevant_vs_noise(selected: list[str], dataset: SyntheticDataset) -> R
         relevant_total=len(relevant),
         noise_kept=[f for f in selected if f not in relevant],
         noise_total=len(dataset.roles) - len(relevant),
+    )
+
+
+# --------------------------------------------------------------------------- Reference runs
+
+REFERENCE_RUNS = ("canonical", "canonical_shuffled", "breast_cancer", "madelon_style")
+
+
+def reference_frame(name: str) -> tuple[pd.DataFrame, str]:
+    """The exact data a Reference run was computed on."""
+    if name in ("canonical", "canonical_shuffled"):
+        data = make_canonical_dataset()
+        return data.frame, data.target
+    if name == "madelon_style":
+        data = make_madelon_style_dataset()
+        return data.frame, data.target
+    if name == "breast_cancer":
+        return load_breast_cancer(), "diagnosis"
+    raise ValueError(f"unknown Reference run {name!r}; expected one of {REFERENCE_RUNS}")
+
+
+@dataclass(frozen=True)
+class ReferenceRun:
+    name: str
+    stage: str  # "pipeline" (featurewiz()) or "recursive_xgboost" (that stage alone)
+    versions: dict[str, str]
+    input_features: list[str]
+    sulov_kept: list[str] | None
+    rounds: list[dict]
+    selected: list[str]
+
+
+def load_reference(name: str) -> ReferenceRun:
+    return ReferenceRun(**json.loads((reference_dir() / f"reference_{name}.json").read_text()))
+
+
+def run_like_reference(reference: ReferenceRun, tree_method: str | None = "exact") -> Selection | RecursiveXgbResult:
+    """Run the Re-implementation on the same input, in the same column order, as a Reference run."""
+    frame, target = reference_frame(reference.name)
+    if reference.stage == "pipeline":
+        return select_features(frame[[*reference.input_features, target]], target, tree_method=tree_method)
+    return recursive_xgboost(frame, reference.input_features, target, tree_method)
+
+
+def matches_reference_environment(reference: ReferenceRun) -> bool:
+    """True when xgboost and scikit-learn are the versions the Reference run used,
+    which is the only setting where an exact match is expected."""
+    import sklearn
+
+    return (xgb.__version__, sklearn.__version__) == (
+        reference.versions["xgboost"], reference.versions["scikit-learn"]
+    )
+
+
+@dataclass(frozen=True)
+class ReferenceComparison:
+    sulov_matches: bool | None  # None when the Reference run has no SULOV stage
+    windows_match: bool
+    max_relative_gain_diff: float
+    selected_matches: bool
+    only_ours: list[str]
+    only_reference: list[str]
+
+    @property
+    def exact(self) -> bool:
+        return (
+            self.sulov_matches is not False
+            and self.windows_match
+            and self.max_relative_gain_diff == 0.0
+            and self.selected_matches
+        )
+
+
+def compare_to_reference(ours: Selection | RecursiveXgbResult, reference: ReferenceRun) -> ReferenceComparison:
+    xgb_result = ours.xgb if isinstance(ours, Selection) else ours
+    sulov_matches = None
+    if reference.sulov_kept is not None:
+        sulov_matches = isinstance(ours, Selection) and ours.sulov.kept == reference.sulov_kept
+
+    windows_match = [r.window for r in xgb_result.rounds] == [r["window"] for r in reference.rounds]
+    diffs = [0.0]
+    for mine, theirs in zip(xgb_result.rounds, reference.rounds):
+        for feature in set(mine.gains) | set(theirs["gains"]):
+            a, b = mine.gains.get(feature, 0.0), theirs["gains"].get(feature, 0.0)
+            if a != b:
+                diffs.append(abs(a - b) / max(abs(b), 1e-12))
+    return ReferenceComparison(
+        sulov_matches=sulov_matches,
+        windows_match=windows_match,
+        max_relative_gain_diff=max(diffs),
+        selected_matches=xgb_result.selected == reference.selected,
+        only_ours=[f for f in xgb_result.selected if f not in reference.selected],
+        only_reference=[f for f in reference.selected if f not in xgb_result.selected],
     )
