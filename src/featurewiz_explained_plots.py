@@ -5,17 +5,55 @@ Colours follow the dataviz reference palette; identity always has a text label t
 """
 from __future__ import annotations
 
+import json
 import math
+import uuid
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
+from plotly.io._base_renderers import MimetypeRenderer
+from plotly.offline import get_plotlyjs_version
 
 from featurewiz_explained import RecursiveXgbResult, SulovResult, SyntheticDataset
 
 ROLE_COLOURS = {"informative": "#2a78d6", "redundant": "#eb6834", "noise": "#1baf7a"}
 KEPT, DROPPED = "#2a78d6", "#a3a29c"
 TEMPLATE = "plotly_white"
+
+PLOTLY_JS = f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js"
+_DRAW = """<div id="{id}" style="height:{height}px; width:100%;"></div>
+<script>(function () {{
+  var fig = {fig};
+  // Evaluate plotly.js with define/module/exports shadowed, so it always sets window.Plotly
+  // and never touches the page's require.js.
+  window._fwxPlotly = window._fwxPlotly || (window.Plotly ? Promise.resolve() :
+    fetch("{js}").then(function (r) {{ return r.text(); }}).then(function (code) {{
+      new Function("define", "module", "exports", code).call(window);
+    }}));
+  window._fwxPlotly.then(function () {{
+    window.Plotly.newPlot("{id}", fig.data, fig.layout, {{responsive: true}});
+  }});
+}})();</script>"""
+
+
+class _SelfLoadingRenderer(MimetypeRenderer):
+    """HTML that loads plotly.js itself, out of reach of the page's require.js.
+
+    Kaggle's notebook viewer loads require.js, so plotly's own <script src> output registers
+    an AMD module instead of window.Plotly and every chart fails with "Plotly is not defined".
+    """
+
+    def to_mimebundle(self, fig_dict):
+        fig = json.loads(pio.to_json(fig_dict, validate=False))
+        height = fig.get("layout", {}).get("height", 450)
+        html = _DRAW.format(id=uuid.uuid4(), height=height, fig=json.dumps(fig).replace("</", "<\\/"), js=PLOTLY_JS)
+        return {"text/html": html}
+
+
+pio.renderers["featurewiz_explained"] = _SelfLoadingRenderer()
+pio.renderers.default = "featurewiz_explained"
 
 
 def correlation_heatmap(frame: pd.DataFrame, features: list[str], corr_limit: float = 0.8) -> go.Figure:
