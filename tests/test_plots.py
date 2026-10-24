@@ -46,3 +46,17 @@ def test_selection_table_lists_every_feature_with_its_role():
     assert kept_col[0] == "✓ kept" and kept_col[2] == "—"
     fills = table.cells.fill.color
     assert len(fills) == 4 and set(fills[3]) == {"white"}  # role colour only in the role column
+
+
+def test_figures_render_with_a_renderer_that_survives_kaggles_require_js():
+    # Kaggle's viewer loads require.js, so a plain <script src=plotly.js> registers an AMD
+    # module instead of window.Plotly and every chart fails with "Plotly is not defined".
+    import plotly.io as pio
+    from plotly.offline import get_plotlyjs_version
+
+    assert pio.renderers.default == "featurewiz_explained"
+    fig = plots.selection_table(["x1"], fwx.make_canonical_dataset())
+    html = pio.renderers["featurewiz_explained"].to_mimebundle(fig.to_dict())["text/html"]
+    assert "<script src" not in html
+    assert 'new Function("define"' in html and "requirejs" not in html
+    assert f"plotly-{get_plotlyjs_version()}.min.js" in html
